@@ -56,23 +56,65 @@ function walk(node: SyntaxNode, relativePath: string, chunks: CodeChunk[]): void
   }
 }
 
-export function chunkFile(filePath: string, relativePath: string): CodeChunk[] {
-  const source = readFileSync(filePath, "utf-8");
-  const parser = new Parser();
-  parser.setLanguage(TypeScript.typescript);
-  const tree = parser.parse(source);
+const MAX_SOURCE_LENGTH = 100_000;
+const SEGMENT_SIZE = 80_000;
+const SEGMENT_OVERLAP = 5_000;
 
-  const chunks: CodeChunk[] = [];
-  walk(tree.rootNode, relativePath, chunks);
-  return chunks;
+export function chunkFile(filePath: string, relativePath: string): CodeChunk[] {
+  try {
+    const source = readFileSync(filePath, "utf-8");
+    const parser = new Parser();
+    parser.setLanguage(TypeScript.typescript);
+    parser.setTimeoutMicros(5_000_000);
+
+    if (source.length <= MAX_SOURCE_LENGTH) {
+      const tree = parser.parse(source);
+      const chunks: CodeChunk[] = [];
+      walk(tree.rootNode, relativePath, chunks);
+      return chunks;
+    }
+
+    const chunksByStartLine = new Map<number, CodeChunk>();
+    let segmentStart = 0;
+    while (segmentStart < source.length) {
+      const segmentEnd = Math.min(segmentStart + SEGMENT_SIZE, source.length);
+      const segmentText = source.slice(segmentStart, segmentEnd);
+      const lineOffset = source.slice(0, segmentStart).split("\n").length - 1;
+
+      const tree = parser.parse(segmentText);
+      const segmentChunks: CodeChunk[] = [];
+      walk(tree.rootNode, relativePath, segmentChunks);
+
+      for (const chunk of segmentChunks) {
+        chunksByStartLine.set(chunk.startLine + lineOffset, {
+          ...chunk,
+          startLine: chunk.startLine + lineOffset,
+          endLine: chunk.endLine + lineOffset,
+        });
+      }
+
+      if (segmentEnd === source.length) break;
+      segmentStart += SEGMENT_SIZE - SEGMENT_OVERLAP;
+    }
+
+    return Array.from(chunksByStartLine.values());
+  } catch (error) {
+    console.warn(
+      `Skipping ${relativePath}: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return [];
+  }
 }
+
+const SKIP_DIRS = new Set(["node_modules", "dist", "test", "__tests__"]);
 
 function collectTsFiles(dir: string, srcRoot: string, files: string[]): void {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (entry.isDirectory()) {
-      if (entry.name === "__tests__") continue;
+      if (SKIP_DIRS.has(entry.name)) continue;
       collectTsFiles(join(dir, entry.name), srcRoot, files);
     } else if (entry.isFile()) {
+      if (entry.name.endsWith(".tsx")) continue;
       if (entry.name.endsWith(".d.ts")) continue;
       if (entry.name.endsWith(".ts")) {
         files.push(join(dir, entry.name));
@@ -81,10 +123,28 @@ function collectTsFiles(dir: string, srcRoot: string, files: string[]): void {
   }
 }
 
+function findSrcDirs(dir: string, depth: number, maxDepth: number): string[] {
+  if (depth > maxDepth) return [];
+
+  const srcDirs: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (!entry.isDirectory() || SKIP_DIRS.has(entry.name)) continue;
+    const fullPath = join(dir, entry.name);
+    if (entry.name === "src") {
+      srcDirs.push(fullPath);
+    }
+    srcDirs.push(...findSrcDirs(fullPath, depth + 1, maxDepth));
+  }
+  return srcDirs;
+}
+
 export function chunkRepo(repoPath: string): CodeChunk[] {
-  const srcRoot = join(repoPath, "src");
+  const srcDirs = findSrcDirs(repoPath, 0, 4);
+
   const files: string[] = [];
-  collectTsFiles(srcRoot, srcRoot, files);
+  for (const srcRoot of srcDirs) {
+    collectTsFiles(srcRoot, srcRoot, files);
+  }
 
   const chunks: CodeChunk[] = [];
   for (const filePath of files) {

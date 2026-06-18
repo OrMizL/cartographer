@@ -20,7 +20,7 @@ function buildPrompt(question: string, chunks: RetrievedChunk[]): string {
 export async function synthesize(question: string, chunks: RetrievedChunk[]): Promise<string> {
   const response = await anthropic.messages.create({
     model: MODEL,
-    max_tokens: 1024,
+    max_tokens: 2048,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: buildPrompt(question, chunks) }],
   });
