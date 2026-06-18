@@ -1,10 +1,16 @@
 import "dotenv/config";
 import { ChromaClient } from "chromadb";
 import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 
 const EMBEDDING_MODEL = "text-embedding-3-small";
+const EXPANSION_MODEL = "claude-sonnet-4-6";
+
+const EXPANSION_SYSTEM_PROMPT =
+  "You are helping improve code search. Given a natural language question about a TypeScript codebase, rewrite it as a technical description of what the relevant code would look like — function names, patterns, types, and implementation details. Return only the rewritten query, nothing else.";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export type RetrievedChunk = {
   text: string;
@@ -14,6 +20,20 @@ export type RetrievedChunk = {
   type: string;
   distance: number;
 };
+
+export async function expandQuery(question: string): Promise<string> {
+  const response = await anthropic.messages.create({
+    model: EXPANSION_MODEL,
+    max_tokens: 256,
+    system: EXPANSION_SYSTEM_PROMPT,
+    messages: [{ role: "user", content: question }],
+  });
+
+  return response.content
+    .filter((block) => block.type === "text")
+    .map((block) => block.text)
+    .join("");
+}
 
 export async function retrieve(
   question: string,
@@ -27,9 +47,12 @@ export async function retrieve(
   });
 
   try {
+    const expandedQuery = await expandQuery(question);
+    console.log(`Expanded query: ${expandedQuery}`);
+
     const embeddingResponse = await openai.embeddings.create({
       model: EMBEDDING_MODEL,
-      input: question,
+      input: expandedQuery,
     });
     const [queryEmbedding] = embeddingResponse.data.map((item) => item.embedding);
 
