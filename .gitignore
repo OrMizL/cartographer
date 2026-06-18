@@ -1,0 +1,5 @@
+node_modules/
+.env
+chroma_store/
+repos/
+dist/
