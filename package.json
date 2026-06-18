@@ -2,8 +2,13 @@
   "name": "cartographer",
   "version": "1.0.0",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "ingest": "tsx src/ingestion/index.ts",
+    "ingest:repo": "tsx src/ingestion/index.ts --repo",
+    "dev": "tsx src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js"
   },
   "keywords": [],
   "author": "",
