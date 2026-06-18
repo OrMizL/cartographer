@@ -6,8 +6,9 @@ import Anthropic from "@anthropic-ai/sdk";
 const EMBEDDING_MODEL = "text-embedding-3-small";
 const EXPANSION_MODEL = "claude-sonnet-4-6";
 
-const EXPANSION_SYSTEM_PROMPT =
-  "You are helping improve code search. Given a natural language question about a TypeScript codebase, rewrite it as a technical description of what the relevant code would look like — function names, patterns, types, and implementation details. Return only the rewritten query, nothing else.";
+function buildExpansionSystemPrompt(repoId: string): string {
+  return `You are helping improve code search for the ${repoId} TypeScript library. Given a natural language question about a TypeScript codebase, rewrite it as a technical description of what the relevant code would look like — function names, patterns, types, and implementation details. Return only the rewritten query, nothing else.`;
+}
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -21,11 +22,11 @@ export type RetrievedChunk = {
   distance: number;
 };
 
-export async function expandQuery(question: string): Promise<string> {
+export async function expandQuery(question: string, repoId: string): Promise<string> {
   const response = await anthropic.messages.create({
     model: EXPANSION_MODEL,
     max_tokens: 256,
-    system: EXPANSION_SYSTEM_PROMPT,
+    system: buildExpansionSystemPrompt(repoId),
     messages: [{ role: "user", content: question }],
   });
 
@@ -47,7 +48,7 @@ export async function retrieve(
   });
 
   try {
-    const expandedQuery = await expandQuery(question);
+    const expandedQuery = await expandQuery(question, repoId);
     console.log(`Expanded query: ${expandedQuery}`);
 
     const embeddingResponse = await openai.embeddings.create({
