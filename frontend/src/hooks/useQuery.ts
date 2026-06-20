@@ -10,6 +10,8 @@ export function useQuery() {
   const submit = async (question: string, repoId: string) => {
     setLoading(true)
     setError(null)
+    setAnswer('')
+    setChunks([])
 
     try {
       const res = await fetch('/api/query', {

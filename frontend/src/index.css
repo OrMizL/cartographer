@@ -1,1 +1,30 @@
 @import "tailwindcss";
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.map-grid {
+  background-image: radial-gradient(circle, var(--color-line) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+@theme {
+  --color-paper: #F7F4ED;
+  --color-ink: #1A1F2E;
+  --color-ink-soft: #4A5160;
+  --color-rust: #B3552F;
+  --color-rust-dark: #8F421F;
+  --color-sage: #7A8B7F;
+  --color-line: #DDD6C4;
+  --font-mono-display: 'IBM Plex Mono', monospace;
+  --font-sans-body: 'IBM Plex Sans', sans-serif;
+  --animate-fade-in: fade-in 0.3s ease-out;
+}
