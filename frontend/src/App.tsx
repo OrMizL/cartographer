@@ -15,7 +15,7 @@ function App() {
   const { answer, chunks, loading, error, submit } = useQuery()
 
   useEffect(() => {
-    fetch('/api/repos')
+    fetch(`${import.meta.env.VITE_API_URL ?? ''}/repos`)
       .then((res) => res.json())
       .then((data: Repo[]) => {
         setRepos(data)
