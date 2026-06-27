@@ -2,6 +2,10 @@
 
 Cartographer is a code Q&A tool that answers natural-language questions about TypeScript libraries by retrieving and citing the actual source. Ask "how does auth work?" or "where is realtime handled?" and get an answer grounded in real chunks of code, each tagged with the file path and line range it came from — not a paraphrase of documentation, not a hallucinated guess.
 
+## Live Demo
+
+https://cartographer.ormiz.dev — Select a repo, ask a question in plain English, and get an answer cited to the exact file and line number.
+
 ## How it works
 
 Cartographer runs as two separate pipelines: an offline ingestion pipeline that indexes a repo, and an online query pipeline that answers questions against that index.
@@ -101,3 +105,7 @@ npm run dev
 ```
 
 The server listens on `PORT` (default `3000`). `POST /query` with `{ "question": "...", "repoId": "zod" }` returns `{ answer, chunks }`, where each chunk carries `filePath`, `startLine`, `endLine`, `type`, and `distance`.
+
+## Deployment
+
+The frontend is deployed on Vercel at [cartographer.ormiz.dev](https://cartographer.ormiz.dev). The backend API and Chroma vector store run on a DigitalOcean VPS at [api.cartographer.ormiz.dev](https://api.cartographer.ormiz.dev), managed by PM2 with automatic restarts and reboot persistence. HTTPS is handled by Caddy on the backend (reverse proxy with auto-provisioned TLS) and by Vercel on the frontend.
